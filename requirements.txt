@@ -1,0 +1,15 @@
+# --- Núcleo: cliente de Ollama y utilidades ---
+ollama>=0.6.0
+requests>=2.31.0
+psutil>=7.0.0
+tqdm>=4.66.0
+
+# --- Herramienta de transcripción (faster-whisper con CUDA) ---
+faster-whisper>=1.0.0
+nvidia-cublas-cu12
+nvidia-cudnn-cu12
+
+# --- Se irán añadiendo por fases ---
+# litellm[proxy]   # Fase 2: proxy unificado (Ollama / Gemini / OpenAI)
+# chromadb         # Fase 3: base de datos vectorial para RAG
+# fastapi uvicorn  # Fase 6: API e interfaz web
