@@ -11,6 +11,7 @@ Demuestra cómo hablar con:
 
 import os
 import sys
+import time
 from dotenv import load_dotenv
 import litellm
 
@@ -38,17 +39,18 @@ prompt = [
 
 print("🤖 Enviando petición a 'ollama/agente-local'...")
 try:
+    t0 = time.time()
     respuesta = litellm.completion(
         model="ollama/agente-local",
         api_base="http://localhost:11434",
         messages=prompt,
         stream=True
     )
-    print("\nRespuesta (streaming): ", end="")
+    print("Respuesta local (streaming): ", end="")
     for chunk in respuesta:
         contenido = chunk.choices[0].delta.content or ""
         print(contenido, end="", flush=True)
-    print("\n")
+    print(f"\n⏱️  Tiempo local: {time.time() - t0:.2f}s\n")
 except Exception as e:
     print(f"❌ Error al llamar a Ollama vía LiteLLM: {e}")
 
@@ -63,17 +65,21 @@ print(f"- GEMINI_API_KEY configurada: {'✅ SÍ' if gemini_key else '❌ NO (vac
 print(f"- OPENAI_API_KEY configurada: {'✅ SÍ' if openai_key else '❌ NO (vacía o no definida en .env)'}")
 
 if gemini_key:
-    print("\n🌐 Probando llamada a Google Gemini (gemini/gemini-3.8-flash)...")
+    print("\n🌐 Probando llamada a Google Gemini (gemini/gemini-3.5-flash)...")
     try:
-        # num_retries reintenta automáticamente si Google da un 503 por alta demanda
+        t0 = time.time()
         r_gemini = litellm.completion(
-            model="gemini/gemini-3.8-flash",
-            messages=[{"role": "user", "content": "Di 'Hola desde Gemini' en una frase."}],
-            num_retries=3
+            model="gemini/gemini-3.5-flash",
+            messages=[{"role": "user", "content": "Di 'Hola desde Google Gemini' en una frase corta."}],
+            stream=True
         )
-        print("Respuesta de Gemini:", r_gemini.choices[0].message.content)
+        print("Respuesta de Gemini (streaming): ", end="")
+        for chunk in r_gemini:
+            contenido = chunk.choices[0].delta.content or ""
+            print(contenido, end="", flush=True)
+        print(f"\n⏱️  Tiempo en la nube: {time.time() - t0:.2f}s\n")
     except Exception as e:
-        print(f"❌ Error temporal con Gemini (pico de tráfico en servidores gratuitos): {e}")
+        print(f"❌ Error al contactar con Gemini: {e}")
 else:
     print("\nℹ️  Para probar Gemini:")
     print("   1. Consigue una clave gratuita en: https://aistudio.google.com/apikey")
@@ -82,10 +88,16 @@ else:
 if openai_key:
     print("\n🌐 Probando llamada a OpenAI (gpt-4o-mini)...")
     try:
+        t0 = time.time()
         r_openai = litellm.completion(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": "Di 'Hola desde OpenAI' en una frase."}]
+            messages=[{"role": "user", "content": "Di 'Hola desde OpenAI' en una frase."}],
+            stream=True
         )
-        print("Respuesta de OpenAI:", r_openai.choices[0].message.content)
+        print("Respuesta de OpenAI (streaming): ", end="")
+        for chunk in r_openai:
+            contenido = chunk.choices[0].delta.content or ""
+            print(contenido, end="", flush=True)
+        print(f"\n⏱️  Tiempo en la nube: {time.time() - t0:.2f}s\n")
     except Exception as e:
         print(f"❌ Error con OpenAI: {e}")
