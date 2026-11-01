@@ -1,0 +1,3 @@
+@echo off
+echo Iniciando Centro de Control de IA Local...
+"%~dp0.venv\Scripts\streamlit.exe" run "%~dp0web\app.py"

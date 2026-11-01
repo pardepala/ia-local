@@ -17,3 +17,7 @@ nvidia-cudnn-cu12
 
 # --- Fase 3: RAG (Base vectorial local) ---
 chromadb>=0.5.0
+
+
+# --- Fase 6: Interfaz Web y Backoffice ---
+streamlit>=1.35.0
