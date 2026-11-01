@@ -15,5 +15,5 @@ faster-whisper>=1.0.0
 nvidia-cublas-cu12
 nvidia-cudnn-cu12
 
-# --- Fase 3: RAG (se instalará en la siguiente fase) ---
-# chromadb
+# --- Fase 3: RAG (Base vectorial local) ---
+chromadb>=0.5.0
