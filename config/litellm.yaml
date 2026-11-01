@@ -1,0 +1,38 @@
+# Configuración de LiteLLM Proxy
+# Unifica modelos locales (Ollama) y modelos en la nube (Gemini, OpenAI)
+
+model_list:
+  # 1. Tu modelo local personalizado
+  - model_name: agente-local
+    litellm_params:
+      model: ollama/agente-local
+      api_base: http://localhost:11434
+
+  # 2. Qwen 2.5 7B en crudo (local)
+  - model_name: local-fast
+    litellm_params:
+      model: ollama/qwen2.5:1.5b
+      api_base: http://localhost:11434
+
+  # 3. Google Gemini (Nube - requiere GEMINI_API_KEY en .env)
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+
+  # 4. OpenAI ChatGPT (Nube - requiere OPENAI_API_KEY en .env)
+  - model_name: gpt-mini
+    litellm_params:
+      model: gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  # 5. Modelo Inteligente con Fallback (Si el local falla o satura, recurre a Gemini)
+  - model_name: agente-inteligente
+    litellm_params:
+      model: ollama/agente-local
+      api_base: http://localhost:11434
+      fallbacks: ["gemini-flash"]
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false

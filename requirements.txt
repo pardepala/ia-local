@@ -3,13 +3,16 @@ ollama>=0.6.0
 requests>=2.31.0
 psutil>=7.0.0
 tqdm>=4.66.0
+python-dotenv>=1.0.0
+
+# --- Fase 2: LiteLLM (Proxy unificado local + nube) ---
+litellm[proxy]>=1.50.0
+openai>=1.40.0
 
 # --- Herramienta de transcripción (faster-whisper con CUDA) ---
 faster-whisper>=1.0.0
 nvidia-cublas-cu12
 nvidia-cudnn-cu12
 
-# --- Se irán añadiendo por fases ---
-# litellm[proxy]   # Fase 2: proxy unificado (Ollama / Gemini / OpenAI)
-# chromadb         # Fase 3: base de datos vectorial para RAG
-# fastapi uvicorn  # Fase 6: API e interfaz web
+# --- Fase 3: RAG (se instalará en la siguiente fase) ---
+# chromadb
