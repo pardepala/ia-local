@@ -63,10 +63,10 @@ print(f"- GEMINI_API_KEY configurada: {'✅ SÍ' if gemini_key else '❌ NO (vac
 print(f"- OPENAI_API_KEY configurada: {'✅ SÍ' if openai_key else '❌ NO (vacía o no definida en .env)'}")
 
 if gemini_key:
-    print("\n🌐 Probando llamada a Google Gemini (gemini/gemini-2.5-flash)...")
+    print("\n🌐 Probando llamada a Google Gemini (gemini/gemini-3.8-flash)...")
     try:
         r_gemini = litellm.completion(
-            model="gemini/gemini-2.5-flash",
+            model="gemini/gemini-3.8-flash",
             messages=[{"role": "user", "content": "Di 'Hola desde Gemini' en una frase."}]
         )
         print("Respuesta de Gemini:", r_gemini.choices[0].message.content)

@@ -17,7 +17,7 @@ model_list:
   # 3. Google Gemini (Nube - requiere GEMINI_API_KEY en .env)
   - model_name: gemini-flash
     litellm_params:
-      model: gemini/gemini-2.5-flash
+      model: gemini/gemini-3.8-flash
       api_key: os.environ/GEMINI_API_KEY
 
   # 4. OpenAI ChatGPT (Nube - requiere OPENAI_API_KEY en .env)
