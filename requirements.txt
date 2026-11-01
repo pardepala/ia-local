@@ -8,6 +8,7 @@ python-dotenv>=1.0.0
 # --- Fase 2: LiteLLM (Proxy unificado local + nube) ---
 litellm[proxy]>=1.50.0
 openai>=1.40.0
+tenacity>=9.0.0
 
 # --- Herramienta de transcripción (faster-whisper con CUDA) ---
 faster-whisper>=1.0.0

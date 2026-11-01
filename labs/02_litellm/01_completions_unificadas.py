@@ -65,13 +65,15 @@ print(f"- OPENAI_API_KEY configurada: {'✅ SÍ' if openai_key else '❌ NO (vac
 if gemini_key:
     print("\n🌐 Probando llamada a Google Gemini (gemini/gemini-3.8-flash)...")
     try:
+        # num_retries reintenta automáticamente si Google da un 503 por alta demanda
         r_gemini = litellm.completion(
             model="gemini/gemini-3.8-flash",
-            messages=[{"role": "user", "content": "Di 'Hola desde Gemini' en una frase."}]
+            messages=[{"role": "user", "content": "Di 'Hola desde Gemini' en una frase."}],
+            num_retries=3
         )
         print("Respuesta de Gemini:", r_gemini.choices[0].message.content)
     except Exception as e:
-        print(f"❌ Error con Gemini: {e}")
+        print(f"❌ Error temporal con Gemini (pico de tráfico en servidores gratuitos): {e}")
 else:
     print("\nℹ️  Para probar Gemini:")
     print("   1. Consigue una clave gratuita en: https://aistudio.google.com/apikey")
