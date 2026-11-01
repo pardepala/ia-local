@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Lab 03 · Ejercicio 2 — Indexador RAG de tus Proyectos Reales
+Lab 03 · Ejercicio 2 (Mejorado) — Indexador RAG de tus Proyectos Reales
 
-1. Escanea la documentación (.md) de proyectos reales en C:\\desarrollo (ej. hoth, opotests).
-2. Divide los documentos en fragmentos (chunks) con metadatos de proyecto y ruta.
-3. Los almacena en ChromaDB local con embeddings de 'nomic-embed-text'.
-4. Inicia un modo interactivo en la terminal para que puedas preguntarle a tu
-   'agente-local' sobre cualquier detalle de tus proyectos.
+Mejoras clave aplicadas:
+1. Sin datos falsos de prueba (solo lee proyectos reales en C:\\desarrollo).
+2. Inyección contextual en cada chunk (Proyecto + Archivo + Ruta) para búsquedas precisas.
+3. Recupera los 4 mejores fragmentos (Top 4) para dar respuestas completas y contextualizadas.
 """
 
 import os
@@ -24,10 +23,10 @@ client_ollama = Client(host="http://127.0.0.1:11434")
 CARPETA_RAIZ = Path(r"C:\desarrollo")
 CARPETA_CHROMA = Path("data/chroma_db")
 
-# Proyectos a escanear (puedes añadir los que quieras de C:\desarrollo)
-PROYECTOS_OBJETIVO = ["hoth", "opotests", "monitoriza-ws", "ia-local"]
+# Proyectos reales a indexar
+PROYECTOS_OBJETIVO = ["hoth", "opotests", "monitoriza-ws"]
 
-# Carpetas a ignorar dentro de cada proyecto
+# Carpetas a ignorar
 IGNORAR_DIR = {".git", ".venv", "venv", "node_modules", "output", "scratch", "__pycache__", "dist", "build"}
 
 
@@ -44,24 +43,22 @@ class OllamaEmbeddingFunction(EmbeddingFunction):
         return embeddings
 
 
-# --- 2. CHUNKING INTELIGENTE (DIVIDIR POR SECCIONES O LONGITUD) ------------
-def fragmentar_documento(texto: str, max_tamano: int = 1200, solape: int = 150):
-    """Divide un texto largo en fragmentos manejables manteniendo cierto solape."""
+# --- 2. CHUNKING CONSOLAPADO Y ENCABEZADOS ----------------------------------
+def fragmentar_documento(texto: str, max_tamano: int = 1400, solape: int = 200):
     lineas = texto.split("\n")
     chunks = []
     chunk_actual = []
     tamano_actual = 0
 
     for linea in lineas:
-        longitud_linea = len(linea) + 1
-        if tamano_actual + longitud_linea > max_tamano and chunk_actual:
+        longitud = len(linea) + 1
+        if tamano_actual + longitud > max_tamano and chunk_actual:
             chunks.append("\n".join(chunk_actual).strip())
-            # Mantener las últimas líneas como solape de contexto
-            chunk_actual = chunk_actual[-3:] if len(chunk_actual) >= 3 else chunk_actual
+            chunk_actual = chunk_actual[-4:] if len(chunk_actual) >= 4 else chunk_actual
             tamano_actual = sum(len(l) + 1 for l in chunk_actual)
 
         chunk_actual.append(linea)
-        tamano_actual += longitud_linea
+        tamano_actual += longitud
 
     if chunk_actual:
         resto = "\n".join(chunk_actual).strip()
@@ -71,9 +68,9 @@ def fragmentar_documento(texto: str, max_tamano: int = 1200, solape: int = 150):
     return chunks or [texto]
 
 
-# --- 3. ESCANEO E INDEXACIÓN -----------------------------------------------
+# --- 3. ESCANEO E INDEXACIÓN CON INYECCIÓN DE CONTEXTO ---------------------
 def indexar_proyectos(coleccion):
-    print(f"\n📂 Escaneando proyectos en '{CARPETA_RAIZ}'...")
+    print(f"\n📂 Escaneando proyectos reales en '{CARPETA_RAIZ}'...")
     total_archivos = 0
     total_chunks = 0
 
@@ -86,10 +83,12 @@ def indexar_proyectos(coleccion):
         archivos_md = []
 
         for p in dir_proj.rglob("*.md"):
-            # Comprobar que no esté en carpetas ignoradas
             if any(ign in p.parts for ign in IGNORAR_DIR):
                 continue
             archivos_md.append(p)
+
+        # Priorizar README.md primero
+        archivos_md.sort(key=lambda x: (x.name != "README.md", str(x)))
 
         for archivo in archivos_md:
             try:
@@ -102,14 +101,25 @@ def indexar_proyectos(coleccion):
                 docs = []
                 metas = []
 
+                ruta_relativa = str(archivo.relative_to(CARPETA_RAIZ))
+
                 for idx, chunk in enumerate(chunks):
+                    # INYECCIÓN CLAVE: Inyectamos el nombre del proyecto y archivo en el texto
+                    # para que nomic-embed-text entienda exactamente a qué pertenece cada trozo.
+                    doc_con_contexto = (
+                        f"PROYECTO: {nombre_proj}\n"
+                        f"ARCHIVO: {archivo.name} ({ruta_relativa})\n"
+                        f"---\n"
+                        f"{chunk}"
+                    )
+
                     chunk_id = f"{nombre_proj}_{archivo.stem}_{idx}"
                     ids.append(chunk_id)
-                    docs.append(chunk)
+                    docs.append(doc_con_contexto)
                     metas.append({
                         "proyecto": nombre_proj,
                         "archivo": archivo.name,
-                        "ruta_relativa": str(archivo.relative_to(CARPETA_RAIZ)),
+                        "ruta_relativa": ruta_relativa,
                         "chunk": idx
                     })
 
@@ -126,8 +136,7 @@ def indexar_proyectos(coleccion):
 
 # --- 4. BÚSQUEDA Y RESPUESTA DEL AGENTE -------------------------------------
 def consultar_agente(coleccion, pregunta: str):
-    # Buscamos los 3 fragmentos más relevantes
-    n_recuperar = min(3, coleccion.count())
+    n_recuperar = min(4, coleccion.count())
     if n_recuperar == 0:
         print("[!] No hay documentos indexados en la base de datos.")
         return
@@ -140,28 +149,28 @@ def consultar_agente(coleccion, pregunta: str):
     bloques_contexto = []
     fuentes_usadas = []
     for doc, meta in zip(documentos, metadatos):
-        fuente = f"[{meta['proyecto']}] {meta['ruta_relativa']} (fragmento {meta['chunk']})"
+        fuente = f"[{meta['proyecto']}] {meta['ruta_relativa']}"
         fuentes_usadas.append(fuente)
-        bloques_contexto.append(f"ORIGEN: {fuente}\n{doc}")
+        bloques_contexto.append(doc)
 
     contexto = "\n\n" + ("=" * 40) + "\n\n".join(bloques_contexto)
 
     system_prompt = (
         "Eres el Asistente Técnico Personal de Pablo, con acceso a la documentación "
-        "de sus proyectos locales (Hoth, OpoNexo, etc.).\n"
+        "de sus proyectos reales (Hoth, OpoNexo, etc.).\n"
         "INSTRUCCIONES:\n"
         "1. Responde a la pregunta del usuario utilizando la información de los fragmentos recuperados.\n"
-        "2. Cita al final de tu respuesta los proyectos y archivos de los que has extraído la información.\n"
-        "3. Sé conciso, directo y técnico.\n"
+        "2. Sintetiza la respuesta de forma clara y directa.\n"
+        "3. Cita al final de tu respuesta los archivos de los que has extraído la información.\n"
         "4. Si la respuesta no está en el contexto, indícalo con naturalidad sin inventar.\n\n"
         f"--- CONTEXTO RECUPERADO DE TUS PROYECTOS ---\n{contexto}\n--------------------------------------------"
     )
 
     print("\n🔍 Fragmentos recuperados:")
-    for f in fuentes_usadas:
+    for f in list(dict.fromkeys(fuentes_usadas)):
         print(f"   📎 {f}")
 
-    print(f"\n🤖 Agente ({'agente-local'}): ", end="", flush=True)
+    print(f"\n🤖 Agente ({'agente-local'}):\n", end="", flush=True)
     respuesta = litellm.completion(
         model="ollama/agente-local",
         messages=[
@@ -180,12 +189,12 @@ def consultar_agente(coleccion, pregunta: str):
 # --- 5. MODO INTERACTIVO ----------------------------------------------------
 def main():
     print("=" * 70)
-    print("🧠 RAG LOCAL DE PROYECTOS — ASISTENTE PERSONAL")
+    print("🧠 RAG DE PROYECTOS REALES (Mejorado con inyección de contexto)")
     print("=" * 70)
 
     chroma_client = chromadb.PersistentClient(path=str(CARPETA_CHROMA))
     coleccion = chroma_client.get_or_create_collection(
-        name="proyectos_locales",
+        name="proyectos_reales",
         embedding_function=OllamaEmbeddingFunction()
     )
 
@@ -193,7 +202,7 @@ def main():
     if coleccion.count() == 0:
         indexar_proyectos(coleccion)
     else:
-        print(f"[*] Base de datos cargada. Contiene {coleccion.count()} fragmentos.")
+        print(f"[*] Base de datos cargada ({coleccion.count()} fragmentos).")
         opcion = input("¿Deseas reindexar los proyectos para actualizar cambios? (s/N): ").strip().lower()
         if opcion in ("s", "si", "sí", "y"):
             indexar_proyectos(coleccion)
@@ -201,16 +210,6 @@ def main():
     print("\n" + "=" * 70)
     print("💬 MODO CONSULTA INTERACTIVA (Escribe 'salir' para terminar o 'reindexar' para actualizar)")
     print("=" * 70)
-
-    # Preguntas de ejemplo automáticas para la primera prueba
-    ejemplos = [
-        "¿Qué es el proyecto Hoth y cómo se accede a su Airflow?",
-        "¿De qué trata la plataforma OpoNexo y qué servicios incluye?"
-    ]
-
-    print("\n💡 Ejemplos de preguntas que puedes hacerle:")
-    for e in ejemplos:
-        print(f"   • {e}")
 
     while True:
         try:
